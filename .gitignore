@@ -1,0 +1,9 @@
+__pycache__/
+*.py[cod]
+.coverage
+htmlcov/
+.venv/
+venv/
+
+# output/ is normally generated and would be ignored, but the task asks for the
+# generated database and a run log as deliverables, so both are tracked here.
