@@ -171,6 +171,12 @@ class TestTransformer(TempDirTestCase):
         self.assertIsNone(m(None))
         self.assertIsNone(m(float("nan")))
 
+    def test_interlining_is_not_a_lining(self):
+        """Whole-word matching: a different category must not be folded into LININGS."""
+        m = LCADataTransformer.map_component_category
+        self.assertIsNone(m("INTERLINING"))
+        self.assertIsNone(m("INTERLINING (FUSIBLE)"))
+
     def test_grid_has_eight_rows_per_product(self):
         csv = make_csv(
             self.tmp / "a.csv",
@@ -248,6 +254,21 @@ class TestTransformer(TempDirTestCase):
         t = LCADataTransformer(csv)
         t.load()
         self.assertEqual(t.product_rows()[0][3], "CHOICE_PLOT_1")
+
+    def test_duplicate_step_rows_do_not_inflate_the_grid(self):
+        """A repeated (product, step) must not add a ninth row."""
+        rows = lifecycle_rows("R1")
+        duplicate = dict(rows[-1])
+        duplicate["Climate change - kg CO2 eq"] = 99.0
+        csv = make_csv(self.tmp / "dup.csv", rows + [duplicate])
+        t = LCADataTransformer(csv)
+        t.load()
+        impacts = t.impacts()
+        self.assertEqual(len(impacts), len(REQUIRED_STEPS))
+        self.assertEqual(
+            impacts.set_index("process_step").loc["MANUFACTURING", "Climate change - kg CO2 eq"],
+            1.0,
+        )
 
     def test_product_ref_keeps_leading_zeros(self):
         rows = lifecycle_rows("0012345")

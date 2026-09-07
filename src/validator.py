@@ -28,18 +28,14 @@ class ValidationError(Exception):
 
 @dataclass
 class ValidationReport:
-    total_rows: int = 0
     in_scope_rows: int = 0
     missing_columns: list[str] = field(default_factory=list)
-    dropped_rows: dict[str, int] = field(default_factory=dict)
     warnings: list[str] = field(default_factory=list)
 
     def as_dict(self) -> dict:
         return {
-            "total_rows": self.total_rows,
             "in_scope_rows": self.in_scope_rows,
             "missing_columns": self.missing_columns,
-            "dropped_rows": self.dropped_rows,
             "warnings": self.warnings,
         }
 
@@ -56,8 +52,6 @@ class DataValidator:
         self.report = ValidationReport()
 
     def validate(self, df: pd.DataFrame) -> ValidationReport:
-        self.report.total_rows = len(df)
-
         missing = [col for col in REQUIRED_COLUMNS if col not in df.columns]
         if missing:
             self.report.missing_columns = missing
@@ -78,12 +72,10 @@ class DataValidator:
 
         no_ref = int(in_scope[COL_PRODUCT_REF].isna().sum())
         if no_ref:
-            self.report.dropped_rows["missing_product_ref"] = no_ref
             self._warn("%d in-scope rows have no Product Ref and will be skipped", no_ref)
 
         no_step = int(in_scope[COL_PROCESS_STEP].isna().sum())
         if no_step:
-            self.report.dropped_rows["missing_process_step"] = no_step
             self._warn("%d in-scope rows have no Process Step", no_step)
 
         self._check_numeric(in_scope)
@@ -110,7 +102,7 @@ class DataValidator:
         dupes = lifecycle.duplicated(subset=[COL_PRODUCT_REF, COL_PROCESS_STEP]).sum()
         if dupes:
             self._warn(
-                "%d duplicate (Product Ref, Process Step) lifecycle rows; last value wins",
+                "%d duplicate (Product Ref, Process Step) lifecycle rows; first value wins",
                 int(dupes),
             )
 

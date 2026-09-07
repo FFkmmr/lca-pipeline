@@ -78,6 +78,8 @@ COL_WATER = "Water use - m3 eq"
 REQUIRED_COLUMNS: tuple[str, ...] = (
     COL_PRODUCT_ID,
     COL_PRODUCT_REF,
+    COL_COLOR_CODE,
+    COL_SUPPLIER,
     COL_COMPONENT_CATEGORY,
     COL_PROCESS_STEP,
     COL_SOURCE,
@@ -93,11 +95,12 @@ SOURCE_PRODUCT_LIFECYCLE = "PRODUCT_LIFECYCLE_STEP"
 SOURCE_COMPONENT_IMPACT = "COMPONENT_IMPACT"
 
 # Component categories in the CSV carry construction detail, e.g.
-# "MAIN FABRIC (WOVEN)". Matching is done on these substrings so that variants
-# such as "MAIN FABRIC (KNIT)" map to the same logical step.
+# "MAIN FABRIC (WOVEN)". Matching is done on whole words so that variants such as
+# "MAIN FABRIC (KNIT)" map to the same logical step, while a different category
+# that merely contains the word ("INTERLINING") does not.
 COMPONENT_CATEGORY_PATTERNS: tuple[tuple[str, str], ...] = (
-    ("MAIN FABRIC", "MAIN_FABRIC"),
-    ("LINING", "LININGS"),
+    (r"\bMAIN FABRIC\b", "MAIN_FABRIC"),
+    (r"\bLININGS?\b", "LININGS"),
 )
 
 

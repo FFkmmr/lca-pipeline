@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+from numbers import Number
 from pathlib import Path
 
 import pandas as pd
@@ -119,7 +121,7 @@ class LCADataTransformer:
             return None
         text = str(category).upper()
         for pattern, step in COMPONENT_CATEGORY_PATTERNS:
-            if pattern in text:
+            if re.search(pattern, text):
                 return step
         return None
 
@@ -143,15 +145,6 @@ class LCADataTransformer:
             [COL_PRODUCT_REF, "process_step", COL_CLIMATE, COL_WATER],
         ]
 
-        # A product should not carry two rows for the same logical component.
-        duplicates = out.duplicated(subset=[COL_PRODUCT_REF, "process_step"], keep=False)
-        if duplicates.any():
-            logger.warning(
-                "Found %d duplicate (product, component) rows; keeping the first of each",
-                int(duplicates.sum()),
-            )
-            out = out.drop_duplicates(subset=[COL_PRODUCT_REF, "process_step"], keep="first")
-
         logger.info("Matched %d component impact rows", len(out))
         return out
 
@@ -166,6 +159,19 @@ class LCADataTransformer:
         )
         observed[COL_CLIMATE] = pd.to_numeric(observed[COL_CLIMATE], errors="coerce")
         observed[COL_WATER] = pd.to_numeric(observed[COL_WATER], errors="coerce")
+
+        # A product must not carry two rows for the same logical step; a second one
+        # would survive the left join below and break the eight-rows-per-product
+        # invariant. Keeping the first matches what the validator reports.
+        duplicates = observed.duplicated(subset=[COL_PRODUCT_REF, "process_step"], keep=False)
+        if duplicates.any():
+            logger.warning(
+                "Found %d rows sharing a (product, step) key; keeping the first of each",
+                int(duplicates.sum()),
+            )
+            observed = observed.drop_duplicates(
+                subset=[COL_PRODUCT_REF, "process_step"], keep="first"
+            )
 
         # Cartesian product of products x the eight required steps.
         grid = products.merge(
@@ -241,6 +247,6 @@ def _none_if_na(value):
     """Convert pandas NA/NaN sentinels to None so SQLite stores a real NULL."""
     if value is None or pd.isna(value):
         return None
-    if isinstance(value, float):
+    if isinstance(value, Number) and not isinstance(value, bool):
         return float(value)
     return str(value)

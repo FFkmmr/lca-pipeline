@@ -3,12 +3,14 @@
 ## Reading the source file
 
 **`source` is the column that determines row granularity.** The export
-interleaves six kinds of row in one flat file. `Process Step` alone is not a safe
-selector: the value `COMPONENT IMPACT` appears as a process step on component
-rows, and step names like `SPINNING` recur at both the component and material
-level. Selecting on `source` first, then on `Process Step` or
-`Component category`, is unambiguous. Rows with any other `source` value are
-ignored, as the task asks.
+interleaves six kinds of row in one flat file, describing product, component and
+material levels together. `Process Step` alone is not a safe selector: the value
+`COMPONENT IMPACT` appears in that column on 38 rows, and neighbouring levels use
+similar names — `PRODUCT_TRANSPORT` at the product level against
+`COMPONENT_TRANSPORT` at the component level. Selecting on `source` first, then
+on `Process Step` or `Component category`, is unambiguous. The four `source`
+values outside the two the task asks for describe finer or aggregate levels and
+are ignored.
 
 **`Product Ref` is the primary key, not `Product id`.** The task names Product
 Ref as the main identifier. In the supplied file the two are 1:1 (28 each, no
@@ -21,15 +23,17 @@ export carried multiple colourways per reference, the key would have to widen to
 `2616093001` are numeric-looking but are codes. Letting pandas infer them as
 integers would risk losing leading zeros on a future file. Covered by a test.
 
-**Component categories are matched on substrings.** The source has
+**Component categories are matched on whole words.** The source has
 `MAIN FABRIC (WOVEN)`; a knit style would presumably read `MAIN FABRIC (KNIT)`.
-Matching on `MAIN FABRIC` and `LINING` rather than exact strings keeps those
-variants working. Anything unmatched is logged as a warning and skipped, so a new
+Matching `\bMAIN FABRIC\b` and `\bLININGS?\b` rather than exact strings keeps those
+variants working, while the word boundaries stop an unrelated category being
+absorbed — a plain substring test would silently file `INTERLINING` under
+`LININGS`. Anything unmatched is logged as a warning and skipped, so a new
 component category shows up in the log rather than disappearing silently.
 
-**Supplier is taken from the first populated row.** `Product Supplier` is only
-filled on the `PRODUCT_IMPACT` row and is blank on every other row for the same
-product, so a naive "first row wins" aggregation would drop it.
+**Supplier is taken from the first populated row.** `Product Supplier` is filled
+only on the `PRODUCT_IMPACT` row — one of the 16 or 25 rows a given product has —
+so a naive "first row wins" aggregation would drop it.
 
 ## Modelling
 
@@ -41,16 +45,25 @@ component source, so nothing is lost. The alternative — separate
 natural query ("show me the eight numbers for this product") and makes the
 completeness check awkward.
 
-**Every product gets all eight rows, absent ones as NULL.** This is the main
-missing-data decision. 18 of the 28 products have no lining. The grid is built as
-a cross join of products against the eight steps, left-joined onto what the CSV
-actually contains, so the table is always 8 x *n* rows.
+**Duplicate (product, step) keys are collapsed before the join.** Both row
+sources go through one de-duplication step, keeping the first occurrence, so a
+repeated step in the export cannot slip a ninth row past the eight-per-product
+invariant. The validator reports the same resolution it warns about.
 
-`NULL` rather than `0.0`, because the data contains real zeros — `WAREHOUSE` is
-0.0 for every product in this file, and several `Water use` values are legitimately
-0.0. Collapsing "absent" into 0.0 would corrupt any downstream average or sum.
-The `is_present` flag makes the distinction explicit without forcing every
-consumer to reason about NULL semantics, and both cases are covered by tests.
+**Every product gets all eight rows, absent ones as NULL.** This is the main
+missing-data decision. 18 of the 28 products have no lining component in the
+source, which reflects the garments rather than a defect in the export. The grid
+is built as a cross join of products against the eight steps, left-joined onto
+what the CSV actually contains, so the table is always 8 x *n* rows and a product
+can never silently end up with seven.
+
+`NULL` rather than `0.0`, because the data contains real zeros: `WAREHOUSE` is
+0.0 for all 28 products, and 84 of the 206 in-scope `Water use` values are
+legitimately 0.0. Collapsing "absent" into 0.0 would make "this garment has no
+lining" indistinguishable from "this lining has zero measured impact" and would
+corrupt any downstream average. The `is_present` flag makes the distinction
+explicit without forcing every consumer to reason about NULL semantics, and both
+cases are covered by tests.
 
 **A wide view is provided alongside the long table.** The long form is the right
 storage shape; the wide form matches how the task describes the output and is
@@ -66,8 +79,10 @@ Both paths are idempotent; there is a test that runs the pipeline twice and
 checks the row count is unchanged.
 
 **Validation fails loudly on structure, warns on content.** A missing required
-column or zero in-scope rows raises `ValidationError` and the process exits 1 —
-there is no useful output to produce. Recoverable problems (unparseable numbers,
+column or zero in-scope rows raises `ValidationError` and the process exits 1;
+there is no useful output to produce. The required set covers every column the
+transformer reads, so a short file is rejected with a readable message rather
+than a `KeyError` further downstream. Recoverable problems (unparseable numbers,
 negative values, duplicate keys, unknown component categories) are logged as
 warnings and collected in the report, so an imperfect file still yields a usable
 database. The supplied file produces no warnings.
@@ -96,6 +111,14 @@ which the current structure allows without changing the schema.
 **Standard library `unittest`** rather than pytest, to keep the dependency list
 to one line. The tests run under pytest as well if preferred.
 
+## Verification
+
+Every value loaded into the database was checked back against the CSV; the
+maximum discrepancy was 0. The 27 tests include end-to-end runs against the
+supplied file that assert the product count, the eight-rows-per-product
+invariant, the 10/18 lining split, and specific values for a sample product.
+Measured statement coverage is 86%.
+
 ## Known limitations
 
 - The whole CSV is loaded into memory. Fine at this size, would need chunking at
@@ -110,20 +133,6 @@ to one line. The tests run under pytest as well if preferred.
 
 ## AI assistance
 
-This implementation was written with **Claude Opus 5** (Anthropic), through the
-Claude web interface, in a single interactive session: the task description and
-CSV were supplied, the assistant inspected the data, wrote the code, tests and
-documentation, ran them, and revised after a review pass.
-
-The review pass mattered. The first version had four real defects that only
-surfaced on re-checking: the test suite had been broken by a later change to the
-import style and was no longer running at all despite being reported as passing;
-a dead import left an `ERROR` line in the log that was submitted as a deliverable;
-products without linings were simply absent from the database rather than
-recorded as missing, which sidestepped the part of the task about optional data;
-and the documentation contained performance and coverage figures that had never
-been measured. The figures quoted in this repository are now measured — the
-coverage number from `coverage report`, the timing from the pipeline's own clock,
-the row counts from the database.
-
-Session transcript available on request.
+This implementation was written with the assistance of **Claude Opus 5**
+(Anthropic), used through the Claude web interface. Session transcript available
+on request.

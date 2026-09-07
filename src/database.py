@@ -35,7 +35,6 @@ SCHEMA_STATEMENTS: tuple[str, ...] = (
     )
     """,
     "CREATE INDEX IF NOT EXISTS idx_impacts_step ON product_impacts(process_step)",
-    "CREATE INDEX IF NOT EXISTS idx_impacts_kind ON product_impacts(step_kind)",
 )
 
 # Wide, one-row-per-product view. Convenient for eyeballing the deliverable

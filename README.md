@@ -6,7 +6,7 @@ writes them to a local SQLite database.
 
 ## Requirements
 
-- Python 3.10 or newer (the code uses `X | None` type syntax)
+- Python 3.9 or newer (developed and tested on 3.11)
 - pandas 1.5+
 
 ```bash
@@ -31,13 +31,14 @@ By default each run rebuilds the tables, so re-running is safe and idempotent.
 python -m unittest discover -s tests -v
 ```
 
-25 tests. The end-to-end tests run the whole pipeline against the supplied CSV
+27 tests. The end-to-end tests run the whole pipeline against the supplied CSV
 and check the loaded values against the source file; they skip automatically if
 the CSV is absent.
 
 Measured statement coverage (`python -m coverage run --source=src -m unittest
 discover -s tests && python -m coverage report`): **86%**. The uncovered lines
-are the logging setup and the CLI argument handling.
+are the logging setup, the CLI argument handling, and error branches the supplied
+data does not trigger.
 
 ## Output
 
@@ -70,7 +71,7 @@ per product.
 | `step_kind` | `LIFECYCLE` (six) or `COMPONENT` (two) |
 | `climate_change_kg_co2_eq` | `REAL`, nullable |
 | `water_use_m3_eq` | `REAL`, nullable |
-| `is_present` | `1` if the source had this step, `0` if it was absent |
+| `is_present` | `1` if the source supplied a measurement for this step, `0` if it did not |
 | `loaded_at` | |
 
 Primary key `(product_ref, process_step)`.
@@ -156,23 +157,15 @@ for every product. Both cases are covered by tests.
 ```
 run.py                      entry point
 requirements.txt
+README.md                   this file
 src/
   config.py                 paths, the eight steps, column names, logging setup
   database.py               schema, upserts, read helpers
   transformer.py            CSV parsing, step extraction, the 8-step grid
   validator.py              structural validation, coverage reporting
   main.py                   orchestration and CLI
-tests/test_pipeline.py      25 tests
+tests/test_pipeline.py      27 tests
 data/                       input CSV
 output/                     database and logs
 DECISIONS.md                assumptions and technical decisions
 ```
-
-## Troubleshooting
-
-| Symptom | Cause |
-|---|---|
-| `TypeError: unsupported operand type(s) for \|` | Python older than 3.10 |
-| `CSV not found` (exit code 2) | wrong path; pass it explicitly |
-| `Input rejected: CSV is missing required columns` (exit 1) | the export changed shape |
-| Tests report `skipped` | the CSV is not in `data/` |

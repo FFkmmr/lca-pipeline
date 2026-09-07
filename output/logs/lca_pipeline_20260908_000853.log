@@ -1,0 +1,36 @@
+2026-09-08 00:08:53 | INFO    | lca_pipeline.setup_logging:143 | Logging initialised, writing to D:\Projects\Python Task\files\lca-pipeline\output\logs\lca_pipeline_20260908_000853.log
+2026-09-08 00:08:53 | DEBUG   | lca_pipeline.__init__:74 | DatabaseManager bound to D:\Projects\Python Task\files\lca-pipeline\output\lca_data.db
+2026-09-08 00:08:53 | INFO    | lca_pipeline.run:38 | ======================================================================
+2026-09-08 00:08:53 | INFO    | lca_pipeline.run:39 | LCA pipeline starting
+2026-09-08 00:08:53 | INFO    | lca_pipeline.run:40 |   input : D:\Projects\Python Task\files\lca-pipeline\data\fairlymade-nc-lca-report_2026_06_02_AW26_TRANS_choice.csv
+2026-09-08 00:08:53 | INFO    | lca_pipeline.run:41 |   output: D:\Projects\Python Task\files\lca-pipeline\output\lca_data.db
+2026-09-08 00:08:53 | INFO    | lca_pipeline.run:42 | ======================================================================
+2026-09-08 00:08:53 | INFO    | lca_pipeline.load:53 | Reading CSV: D:\Projects\Python Task\files\lca-pipeline\data\fairlymade-nc-lca-report_2026_06_02_AW26_TRANS_choice.csv
+2026-09-08 00:08:53 | INFO    | lca_pipeline.load:66 | Read 538 rows x 33 columns
+2026-09-08 00:08:53 | INFO    | lca_pipeline.run:45 | Row breakdown by source: {'PRODUCT_LIFECYCLE_STEP': 168, 'COMPONENT_LIFECYCLE_STEP': 152, 'MATERIAL_LIFECYCLE_STEP': 114, 'COMPONENT_IMPACT': 38, 'MATERIAL_IMPACT': 38, 'PRODUCT_IMPACT': 28}
+2026-09-08 00:08:53 | INFO    | lca_pipeline.run:47 | -- validation --
+2026-09-08 00:08:53 | INFO    | lca_pipeline.validate:59 | All 9 required columns present
+2026-09-08 00:08:53 | INFO    | lca_pipeline.validate:67 | 206 of 538 rows are in scope for extraction
+2026-09-08 00:08:53 | INFO    | lca_pipeline.run:50 | -- transformation --
+2026-09-08 00:08:53 | INFO    | lca_pipeline.products:103 | Found 28 unique Product Refs
+2026-09-08 00:08:53 | INFO    | lca_pipeline._lifecycle_impacts:114 | Matched 168 lifecycle impact rows
+2026-09-08 00:08:53 | INFO    | lca_pipeline._component_impacts:148 | Matched 38 component impact rows
+2026-09-08 00:08:53 | INFO    | lca_pipeline.impacts:196 | 18 of 224 step slots have no source data; recorded as NULL ({'LININGS': 18})
+2026-09-08 00:08:53 | INFO    | lca_pipeline.impacts:203 | Built impact grid: 28 products x 8 steps = 224 rows
+2026-09-08 00:08:53 | INFO    | lca_pipeline.summarise:137 | Step coverage: 206/224 slots populated (92.0%)
+2026-09-08 00:08:53 | INFO    | lca_pipeline.summarise:146 |   LININGS            10/28 products have data
+2026-09-08 00:08:53 | INFO    | lca_pipeline.run:56 | -- load --
+2026-09-08 00:08:53 | INFO    | lca_pipeline.create_schema:104 | Existing schema dropped (reset requested)
+2026-09-08 00:08:53 | INFO    | lca_pipeline.create_schema:108 | Schema ready: products, product_impacts, v_product_impacts_wide
+2026-09-08 00:08:53 | INFO    | lca_pipeline.insert_products:124 | Wrote 28 product rows
+2026-09-08 00:08:53 | INFO    | lca_pipeline.insert_impacts:145 | Wrote 224 impact rows
+2026-09-08 00:08:53 | INFO    | lca_pipeline.run:70 | Post-load check: every product has all 8 step rows
+2026-09-08 00:08:53 | INFO    | lca_pipeline._log_summary:88 | ======================================================================
+2026-09-08 00:08:53 | INFO    | lca_pipeline._log_summary:89 | SUMMARY
+2026-09-08 00:08:53 | INFO    | lca_pipeline._log_summary:90 |   products                : 28
+2026-09-08 00:08:53 | INFO    | lca_pipeline._log_summary:91 |   impact rows             : 224 (expected 224 = 28 x 8)
+2026-09-08 00:08:53 | INFO    | lca_pipeline._log_summary:98 |   populated / empty slots : 206 / 18
+2026-09-08 00:08:53 | INFO    | lca_pipeline._log_summary:103 |   validation warnings     : 0
+2026-09-08 00:08:53 | INFO    | lca_pipeline._log_summary:104 |   elapsed                 : 0.067 s
+2026-09-08 00:08:53 | INFO    | lca_pipeline._log_summary:105 | ======================================================================
+2026-09-08 00:08:53 | INFO    | lca_pipeline._log_summary:106 | Pipeline finished successfully
